@@ -1,0 +1,15 @@
+{
+  "swaggerApi": {
+    "spec": "./api/starter-kit-api.yaml"
+  },
+  "connections": {
+    "serviceFactory": {
+      "clients": {
+
+      }
+    },
+    "db": {
+
+    }
+  }
+}

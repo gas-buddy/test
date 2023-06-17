@@ -1,0 +1,16 @@
+{
+  "name": "@gasbuddy/starter-kit-api-spec",
+  "version": "1.0.0",
+  "description": "Sample service for gb microservices",
+  "main": "starter-kit-api-spec.json",
+  "scripts": {
+    "prepublish": "cd .. && npm run swagger-pack"
+  },
+  "keywords": [
+    "swagger",
+    "api",
+    "pets"
+  ],
+  "author": "GasBuddy",
+  "license": "UNLICENSED"
+}

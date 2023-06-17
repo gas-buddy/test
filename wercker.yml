@@ -1,0 +1,85 @@
+box:
+   id: gasbuddy/node-app
+   username: $DOCKERHUB_USER
+   password: $DOCKERHUB_PASSWORD
+   tag: wercker-node10
+
+build:
+  services:
+    - id: gasbuddy/pg-plv8-postgis
+      username: $DOCKERHUB_USER
+      password: $DOCKERHUB_PASSWORD
+      tag: 12-2
+
+  steps:
+    - gasbuddy/npm-install@1.0.0
+
+    - script:
+      name: create service env vars
+      code: |
+        export LOGSTASH_URL=log://$LOGSTASHD_PORT_9999_TCP_ADDR:$LOGSTASHD_PORT_9999_TCP_PORT/
+
+    - script:
+      name: lint
+      code: npm run lint
+
+    - script:
+      name: test with coverage
+      code: |
+        npm run --silent ci-test
+        npm run --silent ci-cover
+
+    - script:
+      name: client build
+      code: npm run swagger-pack
+
+    - gasbuddy/production-build@1.0.0
+
+  after-steps:
+    - script:
+      name: print tap output
+      code: cat .tap_output
+
+    - script:
+      name: print test logs
+      code: cat test_output.log
+
+ecr-deploy:
+  box:
+    id: gasbuddy/node-app
+    username: $DOCKERHUB_USER
+    password: $DOCKERHUB_PASSWORD
+    tag: 10-production
+    cmd: /bin/sh
+
+  steps:
+    - script:
+      name: Set AWS tag
+      code: export AWS_ECR_TAG=$(cat WERCKER_BUILD_ID)_$WERCKER_GIT_COMMIT
+
+    - gasbuddy/prepare-gasbuddy-deploy@2.4.0
+
+    - internal/docker-push:
+        aws-access-key: $AWS_ACCESS_KEY_ID
+        aws-secret-key: $AWS_SECRET_ACCESS_KEY
+        aws-region: $AWS_REGION
+        aws-registry-id: $AWS_REGISTRY_ID
+        repository: $WERCKER_GIT_REPOSITORY
+        tag: $AWS_ECR_TAG
+        cmd: node-app
+
+publish-client:
+  steps:
+    - script:
+      name: npm publish
+      code: |
+        echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
+        packageName=$(node -p "require('./package.json').name")-client
+        mkdir client
+        npx small-swagger-codegen --language=js --spec=./api/starter-kit-api-spec.json --name=StarterKitApi --packageName=${packageName} --snake
+        cd client
+        npm i
+        npm run build
+        npm publish --tag latest
+        cd ../api
+        npm publish . --tag latest
